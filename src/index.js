@@ -60,7 +60,7 @@ module.exports = function(source, inputSourceMap) {
 
     
     var result = Terser.minify(source, opts);
-    console.log(result);
+    //console.log(result);
     var sourceMap = JSON.parse(result.map);
     //console.log(result.code);
     
