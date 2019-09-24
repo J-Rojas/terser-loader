@@ -77,9 +77,17 @@ module.exports = function(source, inputSourceMap) {
     });
     if (matchedRules.length > 0) {
         overridden = true;
+        // do not deep copy the name cache
+        var nameCache = terserOpts.nameCache;
+        terserOpts.nameCache = null;
+
         //clone and extend
-        LOG("Overridden rule: " + matchedRules[0].test, verbose);        
-        terserOpts = extend(true, {}, terserOpts, matchedRules[0].options);        
+        LOG("Overridden rule: " + matchedRules[0].test, verbose);  
+        
+        terserOpts = extend(true, {}, terserOpts, matchedRules[0].options); 
+        
+        // use the original object reference for the nameCache
+        terserOpts.nameCache = nameCache;
     }
 
     
@@ -90,30 +98,14 @@ module.exports = function(source, inputSourceMap) {
 
     var result = null;
     try {                
-        result = Terser.minify(source, terserOpts);    
-        //console.log(result);      
+        result = Terser.minify(source, terserOpts);                 
         var sourceMap = JSON.parse(result.map);
 
         LOG('\n'+result.code, verbose);
         
-        //copy props items to defaults name cache
-        if (terserOpts.nameCache.props && overridden) {
-            terserDefaultOpts.nameCache.props = terserDefaultOpts.nameCache.props || {};
-            extend(terserDefaultOpts.nameCache.props, terserOpts.nameCache.props);
-        }
-
-        /*
-        console.log("Items in name cache: " + Object.keys(terserOpts.nameCache.props.props).length)
-        console.log(opts.keyCount + ' -> ' + Object.keys(terserOpts.nameCache.props.props).length);
-        */
-
-        if (opts.keyCount != undefined) {
-            if (opts.keyCount > Object.keys(terserOpts.nameCache.props.props).length) {
-                throw "Key count length consistency error" 
-            }
-        }
-
-        opts.keyCount = Object.keys(terserOpts.nameCache.props.props).length;
+        //console.log("Items in name cache: " + terserOpts.nameCache.props.props.size)
+        //console.log(opts.keyCount + ' -> ' + terserOpts.nameCache.props.props.size);                
+        //opts.keyCount = terserOpts.nameCache.props.props.size;
     } catch (e) {
         log.error(e);
         log.error(result);
