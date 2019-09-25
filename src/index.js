@@ -79,15 +79,16 @@ module.exports = function(source, inputSourceMap) {
         overridden = true;
         // do not deep copy the name cache
         var nameCache = terserOpts.nameCache;
+        var origOpts = terserOpts;
         terserOpts.nameCache = null;
 
         //clone and extend
         LOG("Overridden rule: " + matchedRules[0].test, verbose);  
         
         terserOpts = extend(true, {}, terserOpts, matchedRules[0].options); 
-        
+                
         // use the original object reference for the nameCache
-        terserOpts.nameCache = nameCache;
+        terserOpts.nameCache = origOpts.nameCache = nameCache;        
     }
 
     
