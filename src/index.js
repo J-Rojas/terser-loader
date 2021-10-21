@@ -3,6 +3,9 @@ const loaderUtils = require('loader-utils');
 const sourceMap = require('source-map');
 const extend = require('extend');
 const getLogger = require('webpack-log');
+const path = require('path')
+const fs = require('fs');
+const ts = require('./ts')
 const log = getLogger({ name: 'terser-loader' });
 
 async function mergeSourceMap(map, inputMap) {
@@ -46,6 +49,39 @@ function LOG(msg, verbose) {
   if (verbose) log.info(msg);
 }
 
+function getLocalPackageFilePath(file, packagesRoot, root) {
+    // check if the path is within node_modules
+    let i = file.lastIndexOf("node_modules")
+    if (i != -1) {
+        return "./" + file.substring(i + "node_modules".length)
+    }
+
+    // check if the path is within the packagesRoot
+    i = packagesRoot ? file.lastIndexOf(packagesRoot) : -1
+    if (i != -1) {
+        return "./" + file.substring(i + packagesRoot.length)
+    }
+
+    // else use the relative path
+    return path.relative(root, file)
+}
+
+function getFileInfo(relativePath, root) {
+    let filePath = path.resolve(root, relativePath)
+    return fs.statSync(filePath, { throwIfNoEntry: false})
+}
+
+function getFileContents(relativePath, root) {
+    let filePath = path.resolve(root, relativePath)
+    return JSON.parse(fs.readFileSync(filePath))
+}
+
+function writeFileContents(relativePath, root, contents) {
+    let filePath = path.resolve(root, relativePath)
+    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    return fs.writeFileSync(filePath, JSON.stringify(contents))
+}
+
 module.exports = function(source, inputSourceMap) {
     var callback = this.async();
 
@@ -56,13 +92,19 @@ module.exports = function(source, inputSourceMap) {
     var sourceFilename = inputSourceMap ? inputSourceMap.sources[0] : this.resourcePath;
 
     var opts = this.query;
-    var rules = opts.rules || [];
+    var rules = opts.rules || [];    
+    var cacheDir = opts.cacheDir
+    var packagesDir = opts.packagesDir
     var terserDefaultOpts = opts.default;
     var terserOpts = terserDefaultOpts;
     var verbose = opts.verbose
-    
-    LOG(sourceFilename, verbose);
 
+    //LOG(sourceFilename, true);
+
+    const packagesPath = path.normalize(getLocalPackageFilePath(sourceFilename, packagesDir, this.context))
+
+    //LOG(packagesPath, true);
+    
     // apply options based on rules
     var overridden = false;
     
@@ -99,11 +141,40 @@ module.exports = function(source, inputSourceMap) {
 
     var result = null;
     try {                
-        result = Terser.minify(source, terserOpts);                 
+
+        let start = sourceFilename.lastIndexOf("!")
+        let sourceFilePath = start != -1 ? sourceFilename.substring(start + 1) : sourceFilename
+
+        // inspect the cache for an existing entry that is not stale
+        if (cacheDir) {
+
+            // create cache if it doesn't exist
+            if (!fs.existsSync(cacheDir)) {
+                fs.mkdirSync(cacheDir, { recursive: true })
+            }
+
+            let cacheInfo = getFileInfo(packagesPath + ".json", cacheDir)
+            let fileInfo = getFileInfo(sourceFilePath, "")
+            if (cacheInfo && cacheInfo.mtime > fileInfo.mtime) {
+                // use the cache entry
+                result = getFileContents(packagesPath + ".json", cacheDir)
+            }
+        }
+
+        if (result == null) {
+            
+            result = Terser.minify(source, terserOpts);    
+                         
+            if (cacheDir) {
+                // save to cache
+                writeFileContents(packagesPath + ".json", cacheDir, result)
+            }    
+
+            LOG('\n'+result.code, verbose);        
+        }
+        
         var sourceMap = JSON.parse(result.map);
 
-        LOG('\n'+result.code, verbose);
-        
         //console.log("Items in name cache: " + terserOpts.nameCache.props.props.size)
         //console.log(opts.keyCount + ' -> ' + terserOpts.nameCache.props.props.size);                
         //opts.keyCount = terserOpts.nameCache.props.props.size;

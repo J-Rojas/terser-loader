@@ -10,7 +10,8 @@
     "extend": "^3.0.2",
     "loader-utils": "^1.2.3",
     "source-map": "^0.7.3",
-    "terser": "github:J-Rojas/terser#advanced-mangling+master",
+    "terser": "../terser",
+    "ts-morph": "^11.0.0",
     "webpack-log": "^3.0.1"
   },
   "author": "",
