@@ -9,20 +9,21 @@ function createTypescriptProject(tsConfigFilePath) {
     return project
 }
 
-function markPropertyAsUnobfuscated(identifier, type, context) {
+function markIdentifierWithProperty(identifier, context, property) {
     //console.log("marking: ", identifier.getText(), identifier.getKindName(), type)
-    //console.log("marking done")    
-    if (context.toUnobfuscate.indexOf(identifier) == -1) {
-        context.toUnobfuscate.push(identifier)
-    }
+    //console.log("marking done")        
+    let key = identifier.compilerNode.pos
+    let props = context.nodeProperties.get(key) || {}
+    context.toProcess.add(key)
+    context.nodeProperties.set(key, Object.assign(props, property))    
     //identifier.rename(identifier.getText() + NOBF_MARKER)
 }
 
 function getMatchingTypes(node, context) {
     const type = node.getType()
-    const symbol = type.getAliasSymbol()
-    if (symbol && context.typeNames.has(symbol.getEscapedName())) {
-        return symbol.getEscapedName()
+    const symbol = type.getSymbol() || type.getAliasSymbol()
+    if (symbol && context.typeNames.get(symbol.getEscapedName())) {
+        return Object.assign({ name: symbol.getEscapedName() }, context.typeNames.get(symbol.getEscapedName()))
     }    
 
     //console.log(type, null, 4)
@@ -48,7 +49,7 @@ function processNode(child, traversal, context) {
         } else if (child.asKind(typescript.SyntaxKind.PropertyAssignment)) {            
             const children = child.getChildren()            
             const propName = children[0].getText()
-            markPropertyAsUnobfuscated(children[0], context.type.getEscapedName(), context)
+            markIdentifierWithProperty(children[0], context, { exclude: true })
 
             // determine the type for this property assignment
             const typeDeclaration = context.type.getDeclarations()[0].getType().getProperty(propName).getDeclarations()[0].getType().getAliasSymbol()
@@ -71,20 +72,31 @@ function processNode(child, traversal, context) {
         const lastChild = child.getChildren()[2]                
         const type = getMatchingTypes(firstChild, context)
         if (type) {            
-            markPropertyAsUnobfuscated(lastChild, type, context)
+            if (type.exclude) {
+                markIdentifierWithProperty(lastChild, context, { exclude: true })                
+            }
         }
                     
     } else if (child.asKind(typescript.SyntaxKind.CaretEqualsToken) || child.asKind(typescript.SyntaxKind.EqualsToken)) {
         // mark object property assignments        
         const sibling = child.getPreviousSibling()
         if (sibling) {            
-            const symbol = sibling.getType().getSymbol() || sibling.getType().getAliasSymbol()
-            if (symbol) {
-                if (symbol && context.typeNames.has(symbol.getEscapedName())) {    
-                    context.type = symbol                
-                    //console.log("setting symbol: ", symbol && symbol.getEscapedName())
-                }            
-            }
+            const type = getMatchingTypes(sibling, context)
+            if (type) {
+                context.type = symbol
+                //console.log("setting symbol: ", symbol && symbol.getEscapedName())
+            }            
+            
+        }
+    } else if (child.asKind(typescript.SyntaxKind.PropertyDeclaration) || child.asKind(typescript.SyntaxKind.MethodDeclaration)) {
+
+        // get class
+        const classDecl = child.getParent().getSymbol()
+        const typeDef = context.typeNames.get(classDecl.getEscapedName())
+        if (typeDef) {
+            // get identifier
+            const identifier = child.getFirstChildByKind(typescript.SyntaxKind.Identifier)            
+            markIdentifierWithProperty(identifier, context, typeDef)            
         }
     }
     

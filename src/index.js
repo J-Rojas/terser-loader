@@ -5,7 +5,8 @@ const extend = require('extend');
 const getLogger = require('webpack-log');
 const path = require('path')
 const fs = require('fs');
-const ts = require('./ts')
+const ts = require('./ts');
+const merge = require('@brikcss/merge');
 const log = getLogger({ name: 'terser-loader' });
 
 async function mergeSourceMap(map, inputMap) {
@@ -49,6 +50,68 @@ function LOG(msg, verbose) {
   if (verbose) log.info(msg);
 }
 
+function writePackageLockfile(packagesRoot) {
+    const fpath = path.resolve(packagesRoot, "terser-loader.lock")
+    if (fs.existsSync(fpath)) {
+        throw new Error("Lock file exists!")
+    }
+    fs.mkdirSync(packagesRoot, { recursive: true })
+    fs.writeFileSync(fpath, "")
+}
+
+function removePackageLockfile(packagesRoot) {
+    const fpath = path.resolve(packagesRoot, "terser-loader.lock")
+    fs.rmSync(fpath)
+}
+
+function readNameCache(packagesRoot, elements) {
+    // read the cache properties file
+    const filepath = path.resolve(packagesRoot, "NAME_CACHE.json")    
+    if (fs.existsSync(filepath)) {        
+        let newElements = getFileContents("NAME_CACHE.json", packagesRoot)
+
+        for (let entry of Object.entries(newElements || {})) {
+            elements[entry[0]] = merge(elements[entry[0]], entry[1])
+        }        
+    }
+    return elements
+}
+
+function writeNameCache(packagesRoot, tableMap) {
+    
+    let elements = readNameCache(packagesRoot, {})
+
+    //write table out
+    for (let entry of tableMap.propsExt.entries()) {
+        elements[entry[0]] = merge(elements[entry[0]], entry[1])
+    }        
+    writeFileContents("NAME_CACHE.json", packagesRoot, elements, true)
+}
+
+function writeTranslationTable(packagesRoot) {
+
+    let elements = readNameCache(packagesRoot, {})
+
+    const tableMap = new Map()
+    for (let entry of Object.entries(elements || {})) {
+        if (entry[1].translation) {
+            tableMap.set(entry[0], entry[1].value)
+        }
+    }
+    
+    const fpath = path.resolve(packagesRoot, "TRANSLATION.js")
+    let contents = "export default {\n"
+
+    for (let entry of tableMap.entries()) {
+        contents += "    \"" + entry[0] + "\": \"" + entry[1] + "\",\n"
+    }
+
+    contents += "}\n"
+
+    fs.mkdirSync(packagesRoot, { recursive: true })
+    fs.writeFileSync(fpath, contents)
+}
+
 function getLocalPackageFilePath(file, packagesRoot, root) {
     // check if the path is within node_modules
     let i = file.lastIndexOf("node_modules")
@@ -76,13 +139,13 @@ function getFileContents(relativePath, root) {
     return JSON.parse(fs.readFileSync(filePath))
 }
 
-function writeFileContents(relativePath, root, contents) {
+function writeFileContents(relativePath, root, contents, stringify=false) {
     let filePath = path.resolve(root, relativePath)
     fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    return fs.writeFileSync(filePath, JSON.stringify(contents))
+    return fs.writeFileSync(filePath, stringify ? JSON.stringify(contents, null, 4) : contents)
 }
 
-module.exports = function(source, inputSourceMap) {
+module.exports = async function(source, inputSourceMap) {
     var callback = this.async();
 
     if (this.cacheable) {
@@ -101,8 +164,10 @@ module.exports = function(source, inputSourceMap) {
 
     //LOG(sourceFilename, true);
 
-    const packagesPath = path.normalize(getLocalPackageFilePath(sourceFilename, packagesDir, this.context))
-
+    const localPackagePath = getLocalPackageFilePath(sourceFilename, packagesDir, this.context)
+    const packagesPath = path.normalize(localPackagePath).replace(/.tsx?$/, ".js")
+    const packageRootPath = path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/")))
+    
     //LOG(packagesPath, true);
     
     // apply options based on rules
@@ -130,10 +195,9 @@ module.exports = function(source, inputSourceMap) {
         terserOpts = extend(true, {}, terserOpts, matchedRules[0].options); 
                 
         // use the original object reference for the nameCache
-        terserOpts.nameCache = origOpts.nameCache = nameCache;        
+        terserOpts.nameCache = origOpts.nameCache = nameCache;                 
     }
 
-    
     terserOpts.sourceMap = {
         filename: sourceFilename,
         url: sourceFilename + ".map"      
@@ -141,7 +205,11 @@ module.exports = function(source, inputSourceMap) {
 
     var result = null;
     try {                
-
+        
+        if (cacheDir) {         
+            writePackageLockfile(packageRootPath)
+        }
+    
         let start = sourceFilename.lastIndexOf("!")
         let sourceFilePath = start != -1 ? sourceFilename.substring(start + 1) : sourceFilename
 
@@ -163,25 +231,46 @@ module.exports = function(source, inputSourceMap) {
 
         if (result == null) {
             
-            result = Terser.minify(source, terserOpts);    
-                         
+            result = await Terser.minify(source, terserOpts);    
+                 
+            LOG('\n'+result.code, verbose);        
+
             if (cacheDir) {
                 // save to cache
-                writeFileContents(packagesPath + ".json", cacheDir, result)
-            }    
-
-            LOG('\n'+result.code, verbose);        
+                writeFileContents(packagesPath + ".json", cacheDir, result, true)
+                writeFileContents(packagesPath, cacheDir, result.code)
+            }                
         }
         
         var sourceMap = JSON.parse(result.map);
+
+        // write translation table
+        if (terserOpts.mangle.properties.cache) {
+            writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
+            writeTranslationTable(packageRootPath)
+            
+            // clear cache since we are using the file to synchronize            
+            terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
+        }
+
+        //LOG(terserOpts.mangle.properties.cache.props, true)
 
         //console.log("Items in name cache: " + terserOpts.nameCache.props.props.size)
         //console.log(opts.keyCount + ' -> ' + terserOpts.nameCache.props.props.size);                
         //opts.keyCount = terserOpts.nameCache.props.props.size;
     } catch (e) {
+        log.error("Error while processing: ", sourceFilename)    
+        //log.error("Source: ")
+        //log.error(source)    
         log.error(e);
-        log.error(result);
+        //log.error(result);
         throw new Error;
+    } finally {
+        try {
+            removePackageLockfile(packageRootPath)
+        } catch {
+
+        }
     }
 
     if (inputSourceMap) {
