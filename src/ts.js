@@ -23,7 +23,7 @@ function getMatchingTypes(node, context) {
     const type = node.getType()
     const symbol = type.getSymbol() || type.getAliasSymbol()
     if (symbol && context.typeNames.get(symbol.getEscapedName())) {
-        return Object.assign({ name: symbol.getEscapedName() }, context.typeNames.get(symbol.getEscapedName()))
+        return Object.assign({ name: symbol.getEscapedName(), symbol }, context.typeNames.get(symbol.getEscapedName()))
     }    
 
     //console.log(type, null, 4)

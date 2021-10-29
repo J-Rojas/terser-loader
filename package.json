@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "extend": "^3.0.2",
+    "find-up": "^5",
     "loader-utils": "^1.2.3",
     "source-map": "^0.7.3",
     "terser": "../terser",

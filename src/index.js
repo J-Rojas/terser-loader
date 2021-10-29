@@ -8,6 +8,7 @@ const fs = require('fs');
 const ts = require('./ts');
 const merge = require('@brikcss/merge');
 const log = getLogger({ name: 'terser-loader' });
+const findUp = require('find-up')
 
 async function mergeSourceMap(map, inputMap) {
   var inputMapConsumer = await new sourceMap.SourceMapConsumer(inputMap);
@@ -100,16 +101,35 @@ function writeTranslationTable(packagesRoot) {
     }
     
     const fpath = path.resolve(packagesRoot, "TRANSLATION.js")
-    let contents = "export default {\n"
+    let contents = "export default new Map(Object.entries({\n"
 
     for (let entry of tableMap.entries()) {
         contents += "    \"" + entry[0] + "\": \"" + entry[1] + "\",\n"
     }
 
-    contents += "}\n"
+    contents += "}))\n"
 
     fs.mkdirSync(packagesRoot, { recursive: true })
     fs.writeFileSync(fpath, contents)
+}
+
+function copyPackageFile(localPackagePath, packageRoot) {
+    const dest = path.resolve(packageRoot, "package.json")
+    if (!fs.existsSync(dest)) {
+        fs.copyFileSync(
+            path.resolve(localPackagePath, "package.json"), 
+            path.resolve(packageRoot, "package.json")
+        )    
+    }
+}
+
+function updatePackageFileEntries(file, packageRoot) {    
+    if (file.endsWith(".ts")) {
+        const dest = path.resolve(packageRoot, "package.json")
+        let contents = fs.readFileSync(dest)
+        contents = contents.toString().replace(/.ts([\"'])/g, ".js$1")
+        fs.writeFileSync(dest, contents)
+    }    
 }
 
 function getLocalPackageFilePath(file, packagesRoot, root) {
@@ -127,6 +147,10 @@ function getLocalPackageFilePath(file, packagesRoot, root) {
 
     // else use the relative path
     return path.relative(root, file)
+}
+
+function getLocalPackagePath(file) {
+    return path.dirname(findUp.sync('package.json', { cwd: path.dirname(file) }))
 }
 
 function getFileInfo(relativePath, root) {
@@ -167,7 +191,8 @@ module.exports = async function(source, inputSourceMap) {
     const localPackagePath = getLocalPackageFilePath(sourceFilename, packagesDir, this.context)
     const packagesPath = path.normalize(localPackagePath).replace(/.tsx?$/, ".js")
     const packageRootPath = path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/")))
-    
+    const packagePath = getLocalPackagePath(sourceFilename)
+
     //LOG(packagesPath, true);
     
     // apply options based on rules
@@ -248,7 +273,9 @@ module.exports = async function(source, inputSourceMap) {
         if (terserOpts.mangle.properties.cache) {
             writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
             writeTranslationTable(packageRootPath)
-            
+            copyPackageFile(packagePath, packageRootPath)
+            updatePackageFileEntries(localPackagePath, packageRootPath)
+
             // clear cache since we are using the file to synchronize            
             terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
         }
