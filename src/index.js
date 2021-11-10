@@ -186,11 +186,11 @@ module.exports = async function(source, inputSourceMap) {
     var terserOpts = terserDefaultOpts;
     var verbose = opts.verbose
 
-    //LOG(sourceFilename, true);
+    LOG(sourceFilename, verbose);
 
     const localPackagePath = getLocalPackageFilePath(sourceFilename, packagesDir, this.context)
     const packagesPath = path.normalize(localPackagePath).replace(/.tsx?$/, ".js")
-    const packageRootPath = path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/")))
+    const packageRootPath = cacheDir ? path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/"))) : null
     const packagePath = getLocalPackagePath(sourceFilename)
 
     //LOG(packagesPath, true);
@@ -264,21 +264,21 @@ module.exports = async function(source, inputSourceMap) {
                 // save to cache
                 writeFileContents(packagesPath + ".json", cacheDir, result, true)
                 writeFileContents(packagesPath, cacheDir, result.code)
+
+                // write translation table
+                if (terserOpts.mangle && terserOpts.mangle.properties && terserOpts.mangle.properties.cache) {
+                    writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
+                    writeTranslationTable(packageRootPath)
+                    copyPackageFile(packagePath, packageRootPath)
+                    updatePackageFileEntries(localPackagePath, packageRootPath)
+
+                    // clear cache since we are using the file to synchronize            
+                    terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
+                }
             }                
         }
         
         var sourceMap = JSON.parse(result.map);
-
-        // write translation table
-        if (terserOpts.mangle.properties.cache) {
-            writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
-            writeTranslationTable(packageRootPath)
-            copyPackageFile(packagePath, packageRootPath)
-            updatePackageFileEntries(localPackagePath, packageRootPath)
-
-            // clear cache since we are using the file to synchronize            
-            terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
-        }
 
         //LOG(terserOpts.mangle.properties.cache.props, true)
 

@@ -83,7 +83,7 @@ function processNode(child, traversal, context) {
         if (sibling) {            
             const type = getMatchingTypes(sibling, context)
             if (type) {
-                context.type = symbol
+                context.type = type.symbol
                 //console.log("setting symbol: ", symbol && symbol.getEscapedName())
             }            
             
