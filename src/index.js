@@ -3,12 +3,8 @@ const loaderUtils = require('loader-utils');
 const sourceMap = require('source-map');
 const extend = require('extend');
 const getLogger = require('webpack-log');
-const path = require('path')
-const fs = require('fs');
-const ts = require('./ts');
-const merge = require('@brikcss/merge');
 const log = getLogger({ name: 'terser-loader' });
-const findUp = require('find-up')
+const cache = require('./cache')
 
 async function mergeSourceMap(map, inputMap) {
   var inputMapConsumer = await new sourceMap.SourceMapConsumer(inputMap);
@@ -51,133 +47,22 @@ function LOG(msg, verbose) {
   if (verbose) log.info(msg);
 }
 
-function writePackageLockfile(packagesRoot) {
-    const fpath = path.resolve(packagesRoot, "terser-loader.lock")
-    if (fs.existsSync(fpath)) {
-        throw new Error("Lock file exists!")
-    }
-    fs.mkdirSync(packagesRoot, { recursive: true })
-    fs.writeFileSync(fpath, "")
-}
-
-function removePackageLockfile(packagesRoot) {
-    const fpath = path.resolve(packagesRoot, "terser-loader.lock")
-    fs.rmSync(fpath)
-}
-
-function readNameCache(packagesRoot, elements) {
-    // read the cache properties file
-    const filepath = path.resolve(packagesRoot, "NAME_CACHE.json")    
-    if (fs.existsSync(filepath)) {        
-        let newElements = getFileContents("NAME_CACHE.json", packagesRoot)
-
-        for (let entry of Object.entries(newElements || {})) {
-            elements[entry[0]] = merge(elements[entry[0]], entry[1])
-        }        
-    }
-    return elements
-}
-
-function writeNameCache(packagesRoot, tableMap) {
-    
-    let elements = readNameCache(packagesRoot, {})
-
-    //write table out
-    for (let entry of tableMap.propsExt.entries()) {
-        elements[entry[0]] = merge(elements[entry[0]], entry[1])
-    }        
-    writeFileContents("NAME_CACHE.json", packagesRoot, elements, true)
-}
-
-function writeTranslationTable(packagesRoot) {
-
-    let elements = readNameCache(packagesRoot, {})
-
-    const tableMap = new Map()
-    for (let entry of Object.entries(elements || {})) {
-        if (entry[1].translation) {
-            tableMap.set(entry[0], entry[1].value)
-        }
-    }
-    
-    const fpath = path.resolve(packagesRoot, "TRANSLATION.js")
-    let contents = "export default new Map(Object.entries({\n"
-
-    for (let entry of tableMap.entries()) {
-        contents += "    \"" + entry[0] + "\": \"" + entry[1] + "\",\n"
-    }
-
-    contents += "}))\n"
-
-    fs.mkdirSync(packagesRoot, { recursive: true })
-    fs.writeFileSync(fpath, contents)
-}
-
-function copyPackageFile(localPackagePath, packageRoot) {
-    const dest = path.resolve(packageRoot, "package.json")
-    if (!fs.existsSync(dest)) {
-        fs.copyFileSync(
-            path.resolve(localPackagePath, "package.json"), 
-            path.resolve(packageRoot, "package.json")
-        )    
-    }
-}
-
-function updatePackageFileEntries(file, packageRoot) {    
-    if (file.endsWith(".ts")) {
-        const dest = path.resolve(packageRoot, "package.json")
-        let contents = fs.readFileSync(dest)
-        contents = contents.toString().replace(/.ts([\"'])/g, ".js$1")
-        fs.writeFileSync(dest, contents)
-    }    
-}
-
-function getLocalPackageFilePath(file, packagesRoot, root) {
-    // check if the path is within node_modules
-    let i = file.lastIndexOf("node_modules")
-    if (i != -1) {
-        return "./" + file.substring(i + "node_modules".length)
-    }
-
-    // check if the path is within the packagesRoot
-    i = packagesRoot ? file.lastIndexOf(packagesRoot) : -1
-    if (i != -1) {
-        return "./" + file.substring(i + packagesRoot.length)
-    }
-
-    // else use the relative path
-    return path.relative(root, file)
-}
-
-function getLocalPackagePath(file) {
-    return path.dirname(findUp.sync('package.json', { cwd: path.dirname(file) }))
-}
-
-function getFileInfo(relativePath, root) {
-    let filePath = path.resolve(root, relativePath)
-    return fs.statSync(filePath, { throwIfNoEntry: false})
-}
-
-function getFileContents(relativePath, root) {
-    let filePath = path.resolve(root, relativePath)
-    return JSON.parse(fs.readFileSync(filePath))
-}
-
-function writeFileContents(relativePath, root, contents, stringify=false) {
-    let filePath = path.resolve(root, relativePath)
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    return fs.writeFileSync(filePath, stringify ? JSON.stringify(contents, null, 4) : contents)
-}
 
 module.exports = async function(source, inputSourceMap) {
+    var sourceFilename = inputSourceMap ? inputSourceMap.sources[0] : this.resourcePath;    
+    LOG(sourceFilename + this.resourceQuery, true);
+
     var callback = this.async();
 
     if (this.cacheable) {
-      this.cacheable(); 
+        this.cacheable(true); 
     }
-
-    var sourceFilename = inputSourceMap ? inputSourceMap.sources[0] : this.resourcePath;
-
+  
+    if (this.resourceQuery != "" && this.resourceQuery.indexOf("lang=js") == -1) {
+        callback(null, source, inputSourceMap);
+        return
+    }
+        
     var opts = this.query;
     var rules = opts.rules || [];    
     var cacheDir = opts.cacheDir
@@ -186,16 +71,7 @@ module.exports = async function(source, inputSourceMap) {
     var terserOpts = terserDefaultOpts;
     var verbose = opts.verbose
 
-    LOG(sourceFilename, verbose);
-
-    const localPackagePath = getLocalPackageFilePath(sourceFilename, packagesDir, this.context)
-    const packagesPath = path.normalize(localPackagePath).replace(/.tsx?$/, ".js")
-    const packageRootPath = cacheDir ? path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/"))) : null
-    const packagePath = getLocalPackagePath(sourceFilename)
-
-    //LOG(packagesPath, true);
-    
-    // apply options based on rules
+    //LOG(sourceFilename, verbose);
     var overridden = false;
     
     var matchedRules = rules.filter(it => {
@@ -231,46 +107,32 @@ module.exports = async function(source, inputSourceMap) {
     var result = null;
     try {                
         
-        if (cacheDir) {         
-            writePackageLockfile(packageRootPath)
+        if (typeof source == "object") {
+            source = source.result.toString()
         }
-    
-        let start = sourceFilename.lastIndexOf("!")
-        let sourceFilePath = start != -1 ? sourceFilename.substring(start + 1) : sourceFilename
 
-        // inspect the cache for an existing entry that is not stale
-        if (cacheDir) {
+        //LOG(source, true);        
 
-            // create cache if it doesn't exist
-            if (!fs.existsSync(cacheDir)) {
-                fs.mkdirSync(cacheDir, { recursive: true })
-            }
-
-            let cacheInfo = getFileInfo(packagesPath + ".json", cacheDir)
-            let fileInfo = getFileInfo(sourceFilePath, "")
-            if (cacheInfo && cacheInfo.mtime > fileInfo.mtime) {
-                // use the cache entry
-                result = getFileContents(packagesPath + ".json", cacheDir)
-            }
-        }
+        //result = cache.readCache.call(this, sourceFilename)
 
         if (result == null) {
-            
+
+            const { packageRootPath, localPackagePath, packagePath } = cache.getCachePaths(sourceFilename, cacheDir, packagesDir)
+                        
             result = await Terser.minify(source, terserOpts);    
                  
             LOG('\n'+result.code, verbose);        
 
             if (cacheDir) {
-                // save to cache
-                writeFileContents(packagesPath + ".json", cacheDir, result, true)
-                writeFileContents(packagesPath, cacheDir, result.code)
+
+                //cache.writeCache.call(this, sourceFilename + this.resourceQuery, result)
 
                 // write translation table
                 if (terserOpts.mangle && terserOpts.mangle.properties && terserOpts.mangle.properties.cache) {
-                    writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
-                    writeTranslationTable(packageRootPath)
-                    copyPackageFile(packagePath, packageRootPath)
-                    updatePackageFileEntries(localPackagePath, packageRootPath)
+                    cache.writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
+                    cache.writeTranslationTable(packageRootPath)
+                    cache.copyPackageFile(packagePath, packageRootPath)
+                    cache.updatePackageFileEntries(localPackagePath, packageRootPath)
 
                     // clear cache since we are using the file to synchronize            
                     terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
@@ -292,12 +154,6 @@ module.exports = async function(source, inputSourceMap) {
         log.error(e);
         //log.error(result);
         throw new Error;
-    } finally {
-        try {
-            removePackageLockfile(packageRootPath)
-        } catch {
-
-        }
     }
 
     if (inputSourceMap) {
