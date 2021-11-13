@@ -70,7 +70,7 @@ function copyPackageFile(localPackagePath, packageRoot) {
     if (!fs.existsSync(dest)) {
         fs.copyFileSync(
             path.resolve(localPackagePath, "package.json"), 
-            path.resolve(packageRoot, "package.json")
+            dest
         )    
     }
 }
@@ -125,12 +125,17 @@ function getCachePaths(sourceFilename, cacheDir, packagesDir) {
     
     //LOG(sourceFilename, verbose);
     
+    const localDir = getLocalPackagePath(sourceFilename)
+    if (!packagesDir.endsWith("/")) {
+        packagesDir += "/"
+    }
+    const relativePackagePath = localDir.replace(packagesDir, "")
     const localPackagePath = getLocalPackageFilePath(sourceFilename, packagesDir, this.context)
     let packagesPath = path.normalize(localPackagePath).replace(/.tsx?$/, ".js")
     if (!packagesPath.endsWith("js")) {
         packagesPath += ".js"
     }
-    const packageRootPath = cacheDir ? path.resolve(cacheDir, packagesPath.substring(0, packagesPath.indexOf("/"))) : null
+    const packageRootPath = cacheDir ? path.resolve(cacheDir, relativePackagePath) : null
     const packagePath = getLocalPackagePath(sourceFilename)
     
     //LOG(packagesPath, true);
