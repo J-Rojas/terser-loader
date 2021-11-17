@@ -50,7 +50,6 @@ function LOG(msg, verbose) {
 
 module.exports = async function(source, inputSourceMap) {
     var sourceFilename = inputSourceMap ? inputSourceMap.sources[0] : this.resourcePath;    
-    LOG(sourceFilename + this.resourceQuery, true);
 
     var callback = this.async();
 
@@ -58,19 +57,26 @@ module.exports = async function(source, inputSourceMap) {
         this.cacheable(true); 
     }
   
-    if (this.resourceQuery != "" && this.resourceQuery.indexOf("lang=js") == -1) {
+    let firstTerser = this.loaders.findIndex(it => it.path == require.resolve("./index.js"))
+    if (this.loaderIndex > firstTerser) {
         callback(null, source, inputSourceMap);
         return
     }
-        
+
+    if (this.resourceQuery != "" && !this.resourceQuery.includes("lang=js") && !this.resourceQuery.includes("type=template")) {
+        callback(null, source, inputSourceMap);
+        return
+    }
+
     var opts = this.query;
     var rules = opts.rules || [];    
-    var cacheDir = opts.cacheDir
-    var packagesDir = opts.packagesDir
+    var cacheDir = opts.cacheDir || process.env.CACHE_DIR
+    var packagesDir = opts.packagesDir || process.env.PACKAGES_DIR
     var terserDefaultOpts = opts.default;
     var terserOpts = terserDefaultOpts;
     var verbose = opts.verbose
 
+    LOG(this.request, verbose);
     //LOG(sourceFilename, verbose);
     var overridden = false;
     
@@ -142,6 +148,7 @@ module.exports = async function(source, inputSourceMap) {
         
         var sourceMap = JSON.parse(result.map);
 
+        //LOG(result.code, true)
         //LOG(terserOpts.mangle.properties.cache.props, true)
 
         //console.log("Items in name cache: " + terserOpts.nameCache.props.props.size)

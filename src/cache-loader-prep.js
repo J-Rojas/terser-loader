@@ -7,6 +7,7 @@ const isESLintLoader = l => /(\/|\\|@)eslint-loader/.test(l.path)
 const isNullLoader = l => /(\/|\\|@)null-loader/.test(l.path)
 const isCSSLoader = l => /(\/|\\|@)css-loader/.test(l.path)
 const isCacheLoader = l => /(\/|\\|@)cache-loader/.test(l.path)
+const isSelf = l => l.path === __filename
 const isPitcher = l => l.path !== __filename
 const isPreLoader = l => !l.pitchExecuted
 const isPostLoader = l => l.pitchExecuted
@@ -49,6 +50,7 @@ module.exports = code => code
 module.exports.pitch = function(remainingRequest) {    
         
     //console.log("PITCH: ", this.resourcePath + this.resourceQuery)
+    //console.log("PITCH: ", this.loaders)
 
     const options = loaderUtils.getOptions(this)
     
@@ -71,6 +73,7 @@ module.exports.pitch = function(remainingRequest) {
     }
   
     // remove self
+    let self = loaders.filter(isSelf)
     loaders = loaders.filter(isPitcher)
   
     // do not inject if user uses null-loader to void the type (#1239)
@@ -136,7 +139,7 @@ module.exports.pitch = function(remainingRequest) {
   
         const request = genRequest(loaders)
         // the template compiler uses esm exports
-        return `export { default } from ${request}`
+        return `export { default } from ${request}; export * from ${request};`
     }
   
     // if a custom block has no other matching loader other than vue-loader itself
@@ -148,7 +151,10 @@ module.exports.pitch = function(remainingRequest) {
     // When the user defines a rule that has only resourceQuery but no test,
     // both that rule and the cloned rule will match, resulting in duplicated
     // loaders. Therefore it is necessary to perform a dedupe here.    
-    const request = genRequest(loaders)
-    //console.log(request)
-    return `export * from ${request}`
+    if (/\.[jt]sx?$/.test(this.resourcePath)) {
+        const request = genRequest(loaders)
+        return `const r = require(${request}); module.exports = r`
+    }
+
+    return undefined
 }  
