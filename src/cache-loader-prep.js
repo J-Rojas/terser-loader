@@ -132,6 +132,8 @@ module.exports.pitch = function(remainingRequest) {
         return retval
     }
 
-    const request = genRequest(loaders)
-    return `const r = require(${request}); module.exports = r`    
+    if (!this.resourcePath.endsWith(".css") && !this.resourcePath.endsWith(".json")) {
+        const request = genRequest(loaders)
+        return `const r = require(${request}); module.exports = r`    
+    }
 }  
