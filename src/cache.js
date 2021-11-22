@@ -1,9 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const findUp = require('find-up')
-const merge = require('merge')
-
-const loaderRequest = {}
+const merge = require('@brikcss/merge')
 
 function writePackageLockfile(packagesRoot) {
     const fpath = path.resolve(packagesRoot, "terser-loader.lock")
@@ -38,7 +36,9 @@ function writeNameCache(packagesRoot, tableMap) {
 
     //write table out
     for (let entry of tableMap.propsExt.entries()) {
-        elements[entry[0]] = merge(elements[entry[0]], entry[1])
+        if (entry[1] != "__proto__") {        
+            elements[entry[0]] = merge(elements[entry[0]], entry[1])
+        }
     }        
     writeFileContents("NAME_CACHE.json", packagesRoot, elements, true)
 }
@@ -182,7 +182,7 @@ function writeCache(key, data, callback) {
     
     const { packagesPath } = getCachePaths(sourceFilename, cacheDir, packagesDir)
         
-    //console.log("Write cache: ", content, "\n", loaderRequest)
+    //console.log("Write cache: ", key, sourceFilename, content, "\n")
 
     if (cacheDir) {
 
@@ -223,7 +223,7 @@ function readCache(key, callback) {
     let start = sourceFilename.lastIndexOf("!")
     let sourceFilePath = start != -1 ? sourceFilename.substring(start + 1) : sourceFilename
 
-    //console.log("Read cache: ", sourceFilePath, loaderRequest, packagesPath)
+    //console.log("Read cache: ", sourceFilePath, packagesPath)
 
     // inspect the cache for an existing entry that is not stale
     if (cacheDir) {
@@ -281,6 +281,5 @@ module.exports = {
     writeFileContents,
     getCachePaths,
     cacheKey,
-    compareCache,
-    loaderRequest
+    compareCache
 }

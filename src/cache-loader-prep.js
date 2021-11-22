@@ -2,6 +2,8 @@ const cache = require('./cache')
 const loaderUtils = require('loader-utils')
 const qs = require('querystring')
 const hash = require('hash-sum')
+const path = require('path')
+const vuePitcher = require('vue-loader/lib/loaders/pitcher')
 
 const isESLintLoader = l => /(\/|\\|@)eslint-loader/.test(l.path)
 const isNullLoader = l => /(\/|\\|@)null-loader/.test(l.path)
@@ -95,7 +97,7 @@ module.exports.pitch = function(remainingRequest) {
       const loaderStrings = []
   
       loaders.forEach(loader => {
-        const identifier = typeof loader === 'string'
+        let identifier = typeof loader === 'string'
           ? loader
           : (loader.path + loader.query)
         const request = typeof loader === 'string' ? loader : loader.request
@@ -114,47 +116,22 @@ module.exports.pitch = function(remainingRequest) {
     }
   
     loaders.unshift(cacheLoaderString)
-    
-    
-    // Inject style-post-loader before css-loader for scoped CSS and trimming
-    if (query.type === `style`) {
-  
-        const request = genRequest(loaders)
-        // console.log(request)
-        return query.module
-          ? `export { default } from  ${request}; export * from ${request}`
-          : `export * from ${request}`      
-    }
-    
-    // for templates: inject the template compiler & optional cache
-    if (query.type === `template`) {
-  
-      const request = genRequest(loaders)
-      // the template compiler uses esm exports
-      return `export * from ${request}`
+
+    if (query.vue != null && this.resourcePath.endsWith('.vue')) {
+        // use the Vue global pitcher
+        let retval = vuePitcher.pitch.call(this, remainingRequest)        
+        //let v = path.relative(this.rootContext, __filename), g = path.relative(__dirname, require.resolve('./cache-loader'))
+        //console.log(v, g)        
+        const sanitizeFilename = new RegExp(path.relative(__dirname, __filename).replace(/[#-.]|[[-^]|[?|{}]/g, '\\$&'));
+        retval = retval.replace(new RegExp("![^!]+" + sanitizeFilename + "??[^!]+", "g"), "")
+        //console.log(sanitizeFilename, retval)        
+        // add cache loader to front
+        retval = retval.replace("-!", "!!" + cacheLoaderString + "!")        
+        //console.log("VUE PITCHER: ", retval)        
+        
+        return retval
     }
 
-    // for templates: inject the template compiler & optional cache
-    if (query.type === `script` || this.resourcePath.endsWith('.vue')) {
-  
-        const request = genRequest(loaders)
-        // the template compiler uses esm exports
-        return `export { default } from ${request}; export * from ${request};`
-    }
-  
-    // if a custom block has no other matching loader other than vue-loader itself
-    // or cache-loader, we should ignore it
-    if (query.type === `custom` && shouldIgnoreCustomBlock(loaders)) {
-      return ``
-    }
-    
-    // When the user defines a rule that has only resourceQuery but no test,
-    // both that rule and the cloned rule will match, resulting in duplicated
-    // loaders. Therefore it is necessary to perform a dedupe here.    
-    if (/\.[jt]sx?$/.test(this.resourcePath)) {
-        const request = genRequest(loaders)
-        return `const r = require(${request}); module.exports = r`
-    }
-
-    return undefined
+    const request = genRequest(loaders)
+    return `const r = require(${request}); module.exports = r`    
 }  

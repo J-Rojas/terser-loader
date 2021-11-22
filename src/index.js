@@ -57,13 +57,20 @@ module.exports = async function(source, inputSourceMap) {
         this.cacheable(true); 
     }
   
-    let firstTerser = this.loaders.findIndex(it => it.path == require.resolve("./index.js"))
-    if (this.loaderIndex > firstTerser) {
+    let firstTerser = this.loaders.findIndex((it, idx) => it.path == require.resolve("./index.js"))
+    if (this.loaderIndex > firstTerser) {        
         callback(null, source, inputSourceMap);
+        //LOG("Skipping", true);
+        //LOG(this.request, true);
+        //LOG(this.loaders, true);
+        //LOG(source, true);
         return
     }
 
-    if (this.resourceQuery != "" && !this.resourceQuery.includes("lang=js") && !this.resourceQuery.includes("type=template")) {
+    if (this.resourceQuery != "" && 
+        !this.resourceQuery.includes("lang=js") && 
+        !this.resourceQuery.includes("lang=ts") && 
+        !this.resourceQuery.includes("type=template")) {
         callback(null, source, inputSourceMap);
         return
     }
@@ -76,7 +83,8 @@ module.exports = async function(source, inputSourceMap) {
     var terserOpts = terserDefaultOpts;
     var verbose = opts.verbose
 
-    LOG(this.request, verbose);
+    //LOG(this.resource, true);
+    //LOG(this.request, true);
     //LOG(sourceFilename, verbose);
     var overridden = false;
     

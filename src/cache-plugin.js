@@ -20,12 +20,19 @@ class CachePlugin {
             }
         }
 
+        // find Vue pitcher
+        const vuePitcherIndex = compiler.options.module.rules.findIndex(it => it.loader.includes('vue-loader') && it.loader.includes('pitcher'))
+
         // add a global pitcher to cache all resources
-        compiler.options.module.rules = [
-            pitcher,
-            ...compiler.options.module.rules
-        ]
-        
+        if (vuePitcherIndex == -1) {
+            compiler.options.module.rules =[
+                pitcher,
+                ...compiler.options.module.rules
+            ]            
+        } else {
+            // remove the vue pitcher ... it isn't compatible to wrap it... must be inlined
+            compiler.options.module.rules.splice(vuePitcherIndex, 1, pitcher)
+        }            
     }
 }
 

@@ -15,6 +15,7 @@ loaderUtils.getOptions = function() {
 
 const cacheLoader = {
     loader: 'cache-loader',
+    enforce: 'post',
     options: {
         cacheKey: cache.cacheKey,
         read: cache.readCache,
@@ -27,17 +28,15 @@ module.exports = code => code
 const cacheLoaderModule = require('cache-loader')
 
 module.exports = {
-    default: function() {
-        cache.loaderRequest.request = this.request
-        //console.log("CACHE: ", this.request)
+    default: function(content) { 
         globalQuery = cacheLoader.options
+        //console.log("CACHE: ", this.request, content, globalQuery)        
         let retval = cacheLoaderModule.default.apply(this, arguments)
         globalQuery = null
         return retval
     },
 
     pitch: function() {               
-        cache.loaderRequest.request = this.request
         //console.log("PITCH: ", this.request)
         globalQuery = cacheLoader.options
         let retval = cacheLoaderModule.pitch.apply(this, arguments)

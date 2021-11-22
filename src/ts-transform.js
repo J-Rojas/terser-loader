@@ -66,19 +66,21 @@ function afterTransformer(context, options) {
         }
 
         const wrappedNode = wrappedNodes[node.fileName]
-        const localContext = Object.assign({}, {
-            toProcess,
-            nodeProperties,
-            typeNames: typeMapOptions,
-            translationFullSuffix: options.translationFullSuffix,
-            translationPartialSuffix: options.translationPartialSuffix,
-            excludeSuffix: options.excludeSuffix 
-        })
-        try {            
-            traverseNodes(wrappedNode, localContext)                        
-            // update identifiers
-        } catch (e) {
-            throw e
+        if (wrappedNode) {
+            const localContext = Object.assign({}, {
+                toProcess,
+                nodeProperties,
+                typeNames: typeMapOptions,
+                translationFullSuffix: options.translationFullSuffix,
+                translationPartialSuffix: options.translationPartialSuffix,
+                excludeSuffix: options.excludeSuffix 
+            })
+            try {        
+                traverseNodes(wrappedNode, localContext)                    
+                // update identifiers
+            } catch (e) {
+                throw e
+            }
         }
 
         const visitorContext = Object.assign({}, { 

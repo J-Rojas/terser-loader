@@ -105,7 +105,13 @@ const terserOptionsVueTemplates = {
             ],
             excludeTree: [
                 "NOBF"
-            ]
+            ],            
+            translation: {
+                full: {
+                    reserved: true
+                    /*declarations: [ "DEFAULT_ATTRS" ]*/
+                }
+            }            
         } 
     },          
     module: false,
