@@ -79,8 +79,8 @@ module.exports = async function(source, inputSourceMap) {
     var rules = opts.rules || [];    
     var cacheDir = opts.cacheDir || process.env.CACHE_DIR
     var packagesDir = opts.packagesDir || process.env.PACKAGES_DIR
-    var terserDefaultOpts = opts.default;
-    var terserOpts = terserDefaultOpts;
+    var terserDefaultOpts = opts.default || {};
+    var terserOpts = terserDefaultOpts || {};
     var verbose = opts.verbose
 
     //LOG(this.resource, true);
@@ -131,7 +131,7 @@ module.exports = async function(source, inputSourceMap) {
 
         if (result == null) {
 
-            const { packageRootPath, localPackagePath, packagePath } = cache.getCachePaths(sourceFilename, cacheDir, packagesDir)
+            const { packageRootPath, localPackagePath, packagePath } = cache.getCachePaths(sourceFilename, cacheDir, packagesDir, this.context)
                         
             result = await Terser.minify(source, terserOpts);    
                  

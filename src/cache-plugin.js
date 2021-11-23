@@ -21,7 +21,8 @@ class CachePlugin {
         }
 
         // find Vue pitcher
-        const vuePitcherIndex = compiler.options.module.rules.findIndex(it => it.loader.includes('vue-loader') && it.loader.includes('pitcher'))
+
+        const vuePitcherIndex = compiler.options.module.rules.findIndex(it => it.loader && it.loader.includes('vue-loader') && it.loader.includes('pitcher'))
 
         // add a global pitcher to cache all resources
         if (vuePitcherIndex == -1) {

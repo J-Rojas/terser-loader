@@ -91,7 +91,7 @@ const terserOptionsVueTemplates = {
                 /* Vue api */
                 "nextTick", "$nextTick", "$emit", "$refs", "$mount", "$forceUpdate",
                 /* Template helpers */
-                "_self", "_v", "_u", "_g", "_e", "_s", "_l", "_t", "_c", "_b", "$set", "$get",
+                "_self", "_v", "_u", "_g", "_e", "_s", "_l", "_t", "_c", "_b", "$set", "$get", "_ssrNode"
             ]),          
             excludeParents: [
                 // certain attributes are tied to the Vue/Vuetify framework
