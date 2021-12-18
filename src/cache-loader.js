@@ -30,7 +30,7 @@ const cacheLoaderModule = require('cache-loader')
 module.exports = {
     default: function(content) { 
         globalQuery = cacheLoader.options
-        //console.log("CACHE: ", this.request, content, globalQuery)        
+        //console.log("CACHE: ", this.request, content)        
         let retval = cacheLoaderModule.default.apply(this, arguments)
         globalQuery = null
         return retval

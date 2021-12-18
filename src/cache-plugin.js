@@ -9,9 +9,6 @@ class CachePlugin {
             resourceQuery: query => {            
                 return true
             },
-            exclude: [
-                /node_modules/
-            ],
             options: {
                 cacheKey: cache.cacheKey,
                 read: cache.readCache,

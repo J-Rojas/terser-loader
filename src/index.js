@@ -49,7 +49,7 @@ function LOG(msg, verbose) {
 
 
 module.exports = async function(source, inputSourceMap) {
-    var sourceFilename = inputSourceMap ? inputSourceMap.sources[0] : this.resourcePath;    
+    var sourceFilename = inputSourceMap && inputSourceMap.sources[0] || this.resourcePath;    
 
     var callback = this.async();
 
@@ -84,8 +84,9 @@ module.exports = async function(source, inputSourceMap) {
     var verbose = opts.verbose
 
     //LOG(this.resource, true);
-    //LOG(this.request, true);
-    //LOG(sourceFilename, verbose);
+    //LOG(this.resourcePath, true);
+    //LOG(this.request, true);    
+    //LOG(sourceFilename, true);
     var overridden = false;
     
     var matchedRules = rules.filter(it => {
@@ -135,8 +136,8 @@ module.exports = async function(source, inputSourceMap) {
                         
             result = await Terser.minify(source, terserOpts);    
                  
-            LOG('\n'+result.code, verbose);        
-
+            LOG('\n'+result.code, verbose);   
+            
             if (cacheDir) {
 
                 //cache.writeCache.call(this, sourceFilename + this.resourceQuery, result)
@@ -145,6 +146,7 @@ module.exports = async function(source, inputSourceMap) {
                 if (terserOpts.mangle && terserOpts.mangle.properties && terserOpts.mangle.properties.cache) {
                     cache.writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
                     cache.writeTranslationTable(packageRootPath)
+                    //LOG("Package path: " + packagePath + ", " + packageRootPath, true)
                     cache.copyPackageFile(packagePath, packageRootPath)
                     cache.updatePackageFileEntries(localPackagePath, packageRootPath)
 

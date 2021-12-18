@@ -51,7 +51,7 @@ module.exports = code => code
 
 module.exports.pitch = function(remainingRequest) {    
         
-    //console.log("PITCH: ", this.resourcePath + this.resourceQuery)
+    //console.log("PRELOAD: ", this.resourcePath + this.resourceQuery)
     //console.log("PITCH: ", this.loaders)
 
     const options = loaderUtils.getOptions(this)
