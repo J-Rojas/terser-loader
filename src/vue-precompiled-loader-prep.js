@@ -5,7 +5,7 @@ module.exports = {
         // resolve the request for any precompiled resources
         //const p = `${this.resourcePath.replace(/.js$/, "") + this.resourceQuery}.js`
         //console.log("remaining request: " + this.request, process.env.CACHE_DIR,
-        this.resourcePath.startsWith(process.env.CACHE_DIR))
+        //this.resourcePath.startsWith(process.env.CACHE_DIR))
 
         if (this.resourcePath.startsWith(process.env.CACHE_DIR) &&
             (this.resourcePath.endsWith(".vue") ||

@@ -114,7 +114,12 @@ module.exports.pitch = function(remainingRequest) {
         this.resourcePath + this.resourceQuery
       ].join('!'))
     }
-  
+
+    if (this.resourcePath.endsWith(".html")) {
+      const request = genRequest(loaders)    
+      return `const r = require(${request}); module.exports = r`    
+    }
+
     loaders.unshift(cacheLoaderString)
 
     if (query.vue != null && this.resourcePath.endsWith('.vue')) {
@@ -132,8 +137,16 @@ module.exports.pitch = function(remainingRequest) {
         return retval
     }
 
-    if (!this.resourcePath.endsWith(".css") && !this.resourcePath.endsWith(".json")) {
-        const request = genRequest(loaders)
-        return `const r = require(${request}); module.exports = r`    
+    const useImport = options.useImport && options.useImport.some(it => this.resourcePath.includes(it))
+
+    if (!this.resourcePath.endsWith(".css") && 
+        !this.resourcePath.endsWith(".json") && 
+        !this.resourcePath.endsWith(";")) {
+        const request = genRequest(loaders)    
+        if (useImport) {
+          return `import r from ${request}; export default r`    
+        } else {
+          return `const r = require(${request}); module.exports = r`    
+        }            
     }
 }  

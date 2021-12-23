@@ -49,7 +49,7 @@ function LOG(msg, verbose) {
 
 
 module.exports = async function(source, inputSourceMap) {
-    var sourceFilename = inputSourceMap && inputSourceMap.sources[0] || this.resourcePath;    
+    var sourceFilename = /*inputSourceMap && inputSourceMap.sources[0] || */ this.resourcePath;    
 
     var callback = this.async();
 

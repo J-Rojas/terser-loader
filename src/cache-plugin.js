@@ -2,6 +2,11 @@ const cache = require('./cache')
 const util = require('util')
 
 class CachePlugin {
+
+    constructor(options) {
+        this.options = options
+    }
+ 
     apply(compiler) {
 
         const pitcher = {
@@ -10,6 +15,7 @@ class CachePlugin {
                 return true
             },
             options: {
+                useImport: this.options.useImport,
                 cacheKey: cache.cacheKey,
                 read: cache.readCache,
                 write: cache.writeCache,
