@@ -77,43 +77,54 @@ module.exports = async function(source, inputSourceMap) {
 
     var opts = this.query;
     var rules = opts.rules || [];    
+    var rootDir = opts.rootDir || process.env.ROOT_DIR
     var cacheDir = opts.cacheDir || process.env.CACHE_DIR
     var packagesDir = opts.packagesDir || process.env.PACKAGES_DIR
     var terserDefaultOpts = opts.default || {};
     var terserOpts = terserDefaultOpts || {};
     var verbose = opts.verbose
 
-    //LOG(this.resource, true);
+    //LOG(this.resource, verbose);
     //LOG(this.resourcePath, true);
     //LOG(this.request, true);    
-    //LOG(sourceFilename, true);
+    //LOG(sourceFilename, verbose);
     var overridden = false;
     
     var matchedRules = rules.filter(it => {
         if (it.test) {
             if (Array.isArray(it.test)) {
-                return it.test.filter(it => new RegExp(it).test(sourceFilename)).length > 0;                    
+                return it.test.filter(it => new RegExp(it).test(this.resource)).length > 0;                    
             }
             return new RegExp(it.test).test(sourceFilename)
         }
         return false
     });
+
+    // do not deep copy the name cache
+    var nameCache = terserOpts.nameCache;
+        
     if (matchedRules.length > 0) {
         overridden = true;
-        // do not deep copy the name cache
-        var nameCache = terserOpts.nameCache;
         var origOpts = terserOpts;
         terserOpts.nameCache = null;
 
         //clone and extend
         LOG("Overridden rule: " + matchedRules[0].test, verbose);  
         
-        terserOpts = extend(true, {}, terserOpts, matchedRules[0].options); 
-                
+        terserOpts = extend(true, {}, terserOpts, matchedRules[0].options);               
+
         // use the original object reference for the nameCache
         terserOpts.nameCache = origOpts.nameCache = nameCache;                 
+
     }
 
+    if (!("props" in nameCache)) {
+      nameCache.props = {
+        props: new Map(),
+        propsExt: new Map()    
+      }
+    }
+    
     terserOpts.sourceMap = {
         filename: sourceFilename,
         url: sourceFilename + ".map"      
@@ -126,9 +137,15 @@ module.exports = async function(source, inputSourceMap) {
             source = source.result.toString()
         }
 
-        //LOG(source, true);        
+        //LOG(source, true);     
+        
+        // read the name cache
+        const elements = cache.readNameCache(rootDir, {})
+        for (var e in elements) {
 
-        //result = cache.readCache.call(this, sourceFilename)
+          nameCache.props.props.set(e, elements[e].value)
+          nameCache.props.propsExt.set(e, elements[e])
+        }
 
         if (result == null) {
 
@@ -136,7 +153,7 @@ module.exports = async function(source, inputSourceMap) {
                         
             result = await Terser.minify(source, terserOpts);    
                  
-            LOG('\n'+result.code, verbose);   
+            //LOG('\n'+result.code, verbose);   
             
             if (cacheDir) {
 
@@ -144,14 +161,14 @@ module.exports = async function(source, inputSourceMap) {
 
                 // write translation table
                 if (terserOpts.mangle && terserOpts.mangle.properties && terserOpts.mangle.properties.cache) {
-                    cache.writeNameCache(packageRootPath, terserOpts.mangle.properties.cache)
-                    cache.writeTranslationTable(packageRootPath)
+                    cache.writeNameCache(rootDir, terserOpts.mangle.properties.cache)
+                    cache.writeTranslationTable(rootDir)
                     //LOG("Package path: " + packagePath + ", " + packageRootPath, true)
                     cache.copyPackageFile(packagePath, packageRootPath)
                     cache.updatePackageFileEntries(localPackagePath, packageRootPath)
 
                     // clear cache since we are using the file to synchronize            
-                    terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
+                    //terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        
                 }
             }                
         }
@@ -160,6 +177,8 @@ module.exports = async function(source, inputSourceMap) {
 
         //LOG(result.code, true)
         //LOG(terserOpts.mangle.properties.cache.props, true)
+        //LOG(terserOpts.nameCache, true)
+        //LOG(opts.ident, true)
 
         //console.log("Items in name cache: " + terserOpts.nameCache.props.props.size)
         //console.log(opts.keyCount + ' -> ' + terserOpts.nameCache.props.props.size);                

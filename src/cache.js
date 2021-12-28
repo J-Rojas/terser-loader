@@ -80,6 +80,7 @@ function copyPackageFile(localPackagePath, packageRoot) {
     const dest = path.resolve(packageRoot, "package.json")
     //console.log("PACKAGE: ", dest)
     if (!fs.existsSync(dest)) {        
+        fs.mkdirSync(packageRoot, { recursive: true })    
         const src = path.resolve(localPackagePath, "package.json")
         //console.log("COPYING PACKAGE: ", src, dest)
         fs.copyFileSync(
