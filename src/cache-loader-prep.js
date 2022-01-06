@@ -47,8 +47,6 @@ const shouldIgnoreCustomBlock = loaders => {
 
 const cacheLoaderString = `${require.resolve('./cache-loader')}`
 
-module.exports = code => code
-
 module.exports.pitch = function(remainingRequest) {    
         
     //console.log("PRELOAD: ", this.resourcePath + this.resourceQuery)
@@ -140,7 +138,9 @@ module.exports.pitch = function(remainingRequest) {
     const useImport = options.useImport && options.useImport.some(it => this.resourcePath.includes(it))
 
     if (!this.resourcePath.endsWith(".css") && 
-        !this.resourcePath.endsWith(".json") && 
+        !this.resourcePath.endsWith(".json") &&
+        !this.resourcePath.endsWith(".glsl") && 
+        !this.resourcePath.endsWith(".wasm") && 
         !this.resourcePath.endsWith(";")) {
         const request = genRequest(loaders)    
         if (useImport) {

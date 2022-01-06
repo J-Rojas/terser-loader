@@ -84,12 +84,12 @@ module.exports = async function(source, inputSourceMap) {
     var terserOpts = terserDefaultOpts || {};
     var verbose = opts.verbose
 
-    //LOG(this.resource, verbose);
+    LOG(this.resource, verbose);
     //LOG(this.resourcePath, true);
     //LOG(this.request, true);    
     //LOG(sourceFilename, verbose);
     var overridden = false;
-    
+
     var matchedRules = rules.filter(it => {
         if (it.test) {
             if (Array.isArray(it.test)) {
@@ -104,14 +104,19 @@ module.exports = async function(source, inputSourceMap) {
     var nameCache = terserOpts.nameCache;
         
     if (matchedRules.length > 0) {
+
+        // choose the rule with highest priority
+        matchedRules = matchedRules.sort((a, b) => (a.priority || 0) - (b.priority || 0))
+        
         overridden = true;
         var origOpts = terserOpts;
         terserOpts.nameCache = null;
 
         //clone and extend
-        LOG("Overridden rule: " + matchedRules[0].test, verbose);  
+        let matchedRule = matchedRules[matchedRules.length - 1]
+        LOG("Overridden rule: " + matchedRule.test, verbose);  
         
-        terserOpts = extend(true, {}, terserOpts, matchedRules[0].options);               
+        terserOpts = extend(true, {}, terserOpts, matchedRule.options);               
 
         // use the original object reference for the nameCache
         terserOpts.nameCache = origOpts.nameCache = nameCache;                 

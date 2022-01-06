@@ -67,36 +67,44 @@ function processNode(child, traversal, context) {
 
     //console.log(child.getKindName())
     if (child.asKind(typescript.SyntaxKind.PropertyAccessExpression)) {            
-        // there are two children: first is the item that is being accessed, second is the property        
-        const firstChild = child.getChildren()[0]
-        const lastChild = child.getChildren()[2]                
-        const type = getMatchingTypes(firstChild, context)
-        if (type) {            
-            if (type.exclude) {
-                markIdentifierWithProperty(lastChild, context, { exclude: true })                
+        // there are two children: first is the item that is being accessed, second is the property   
+        try {          
+            const firstChild = child.getChildren()[0]
+            const lastChild = child.getChildren()[2]                
+            const type = getMatchingTypes(firstChild, context)
+            if (type) {            
+                if (type.exclude) {
+                    markIdentifierWithProperty(lastChild, context, { exclude: true })                
+                }
             }
+        } catch (e) {
+            
         }
                     
     } else if (child.asKind(typescript.SyntaxKind.CaretEqualsToken) || child.asKind(typescript.SyntaxKind.EqualsToken)) {
-        // mark object property assignments        
-        const sibling = child.getPreviousSibling()
-        if (sibling) {            
-            const type = getMatchingTypes(sibling, context)
-            if (type) {
-                context.type = type.symbol
-                //console.log("setting symbol: ", symbol && symbol.getEscapedName())
-            }            
-            
+        // mark object property assignments   
+        if (child.getParent()) {        
+            const sibling = child.getPreviousSibling()
+            if (sibling) {            
+                const type = getMatchingTypes(sibling, context)
+                if (type) {
+                    context.type = type.symbol
+                    //console.log("setting symbol: ", symbol && symbol.getEscapedName())
+                }            
+                
+            }
         }
     } else if (child.asKind(typescript.SyntaxKind.PropertyDeclaration) || child.asKind(typescript.SyntaxKind.MethodDeclaration)) {
 
-        // get class
-        const classDecl = child.getParent().getSymbol()
-        const typeDef = context.typeNames.get(classDecl.getEscapedName())
-        if (typeDef) {
-            // get identifier
-            const identifier = child.getFirstChildByKind(typescript.SyntaxKind.Identifier)            
-            markIdentifierWithProperty(identifier, context, typeDef)            
+        // get class    
+        if (child.getParent()) {    
+            const classDecl = child.getParent().getSymbol()
+            const typeDef = context.typeNames.get(classDecl.getEscapedName())
+            if (typeDef) {
+                // get identifier
+                const identifier = child.getFirstChildByKind(typescript.SyntaxKind.Identifier)            
+                markIdentifierWithProperty(identifier, context, typeDef)            
+            }
         }
     }
     

@@ -31,12 +31,14 @@ function afterTransformer(context, options) {
     return (node) => { 
                 
         // wrap source files
+        /*
         const wrappedNodes = {
 
         }
         program.getSourceFiles().forEach(it => {
             wrappedNodes[it.fileName] = createWrappedNode(it, { sourceFile: it, typeChecker: program.getTypeChecker(), createLanguageService: true })
         })
+        */
 
         let toProcess = new Set()
         let nodeProperties = new Map()
@@ -65,7 +67,7 @@ function afterTransformer(context, options) {
             }            
         }
 
-        const wrappedNode = wrappedNodes[node.fileName]
+        const wrappedNode = createWrappedNode(node, { typeChecker: program.getTypeChecker(), createLanguageService: true })
         if (wrappedNode) {
             const localContext = Object.assign({}, {
                 toProcess,
@@ -75,12 +77,9 @@ function afterTransformer(context, options) {
                 translationPartialSuffix: options.translationPartialSuffix,
                 excludeSuffix: options.excludeSuffix 
             })
-            try {        
-                traverseNodes(wrappedNode, localContext)                    
+            traverseNodes(wrappedNode, localContext)                    
                 // update identifiers
-            } catch (e) {
-                throw e
-            }
+            
         }
 
         const visitorContext = Object.assign({}, { 
