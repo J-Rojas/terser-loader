@@ -47,6 +47,25 @@ function LOG(msg, verbose) {
   if (verbose) log.info(msg);
 }
 
+function initializeNameCache(nameCache, rootDir) {
+ 
+  rootDir = rootDir || process.env.ROOT_DIR
+
+  if (!("props" in nameCache)) {
+    nameCache.props = {
+      props: new Map(),
+      propsExt: new Map()    
+    }
+  }
+
+  const elements = cache.readNameCache(rootDir, {})
+  for (var e in elements) {
+
+    nameCache.props.props.set(e, elements[e].value)
+    nameCache.props.propsExt.set(e, elements[e])
+  }
+  
+}
 
 module.exports = async function(source, inputSourceMap) {
     var sourceFilename = /*inputSourceMap && inputSourceMap.sources[0] || */ this.resourcePath;    
@@ -123,13 +142,6 @@ module.exports = async function(source, inputSourceMap) {
 
     }
 
-    if (!("props" in nameCache)) {
-      nameCache.props = {
-        props: new Map(),
-        propsExt: new Map()    
-      }
-    }
-    
     terserOpts.sourceMap = {
         filename: sourceFilename,
         url: sourceFilename + ".map"      
@@ -144,14 +156,8 @@ module.exports = async function(source, inputSourceMap) {
 
         //LOG(source, true);     
         
-        // read the name cache
-        const elements = cache.readNameCache(rootDir, {})
-        for (var e in elements) {
-
-          nameCache.props.props.set(e, elements[e].value)
-          nameCache.props.propsExt.set(e, elements[e])
-        }
-
+        initializeNameCache(nameCache, rootDir)
+    
         if (result == null) {
 
             const { packageRootPath, localPackagePath, packagePath } = cache.getCachePaths(sourceFilename, cacheDir, packagesDir, this.context)
@@ -208,3 +214,5 @@ module.exports = async function(source, inputSourceMap) {
       callback(null, result.code, sourceMap);
     }
 };
+
+module.exports.initializeNameCache = initializeNameCache

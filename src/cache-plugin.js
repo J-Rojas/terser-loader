@@ -9,34 +9,7 @@ class CachePlugin {
  
     apply(compiler) {
 
-        const pitcher = {
-            loader: require.resolve('./cache-loader-prep.js'),
-            resourceQuery: query => {            
-                return true
-            },
-            options: {
-                useImport: this.options.useImport,
-                cacheKey: cache.cacheKey,
-                read: cache.readCache,
-                write: cache.writeCache,
-                compare: cache.compareCache        
-            }
-        }
-
-        // find Vue pitcher
-
-        const vuePitcherIndex = compiler.options.module.rules.findIndex(it => it.loader && it.loader.includes('vue-loader') && it.loader.includes('pitcher'))
-
-        // add a global pitcher to cache all resources
-        if (vuePitcherIndex == -1) {
-            compiler.options.module.rules =[
-                pitcher,
-                ...compiler.options.module.rules
-            ]            
-        } else {
-            // remove the vue pitcher ... it isn't compatible to wrap it... must be inlined
-            compiler.options.module.rules.splice(vuePitcherIndex, 1, pitcher)
-        }            
+                
     }
 }
 

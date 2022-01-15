@@ -8,7 +8,7 @@ module.exports = {
         //this.resourcePath.startsWith(process.env.CACHE_DIR))
 
         if (this.resourcePath.startsWith(process.env.CACHE_DIR) &&
-            (this.resourcePath.endsWith(".vue") ||
+            (this.resource.includes(".vue") ||
             this.resourcePath.endsWith(".css"))) {
             if (fs.existsSync(this.resource)) {
                 this.addDependency(this.resource)                

@@ -209,7 +209,7 @@ function writeCache(key, data, callback) {
         
     //console.log("Write cache: ", key, sourceFilename, content, "\n")
 
-    if (cacheDir) {
+    if (cacheDir && !content.includes('export * from "-!')) {
 
         //console.log(content)
         // update the content by rewriting any import statements
@@ -259,6 +259,9 @@ function readCache(key, callback) {
 
         let cacheInfo = getFileInfo(packagesPath + ".json", cacheDir)
         let fileInfo = getFileInfo(sourceFilePath, "")
+        if (!fileInfo && sourceFilePath.includes("?")) {
+            fileInfo = getFileInfo(sourceFilePath.substring(0, sourceFilePath.indexOf("?")), "")
+        } 
 
         if ((cacheInfo && cacheInfo.mtime) >= (fileInfo && fileInfo.mtime)) {
             // use the cache entry
