@@ -175,8 +175,10 @@ module.exports = async function(source, inputSourceMap) {
                     cache.writeNameCache(rootDir, terserOpts.mangle.properties.cache)
                     cache.writeTranslationTable(rootDir)
                     //LOG("Package path: " + packagePath + ", " + packageRootPath, true)
-                    cache.copyPackageFile(packagePath, packageRootPath)
-                    cache.updatePackageFileEntries(localPackagePath, packageRootPath)
+                    if (packagePath != packageRootPath) {
+                      cache.copyPackageFile(packagePath, packageRootPath)
+                      cache.updatePackageFileEntries(localPackagePath, packageRootPath)
+                    }
 
                     // clear cache since we are using the file to synchronize            
                     //terserOpts.mangle.properties.cache.props = terserOpts.nameCache.props = {}        

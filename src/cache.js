@@ -209,7 +209,10 @@ function writeCache(key, data, callback) {
         
     //console.log("Write cache: ", key, sourceFilename, content, "\n")
 
-    if (cacheDir && !content.includes('export * from "-!')) {
+    if (cacheDir && !content.includes('export * from "-!') && 
+        // the package path should be within the cache, so it should not have a relative path leading outside, 
+        // if so this indicates a rootDir is being transformed and should be ignored
+        packagesPath.indexOf("..") == -1) {
 
         //console.log(content)
         // update the content by rewriting any import statements
